@@ -84,11 +84,13 @@ std::vector<FinetuneJob> list_jobs(const std::string& api_key, int limit = 20);
 FinetuneJob cancel_job(const std::string& job_id, const std::string& api_key);
 
 /// Poll until job completes or fails; calls on_status each interval.
+/// max_wait_seconds: 0 = default 24h cap, otherwise hard deadline.
 FinetuneJob wait_for_completion(
     const std::string& job_id,
     const std::string& api_key,
     int poll_interval_seconds = 30,
-    std::function<void(const FinetuneJob&)> on_status = nullptr);
+    std::function<void(const FinetuneJob&)> on_status = nullptr,
+    int max_wait_seconds = 0);
 
 // ---------------------------------------------------------------------------
 // Model management
@@ -347,8 +349,20 @@ FinetuneJob create_job(const std::string& training_file_id,
                         const FinetuneConfig& config) {
     std::string body = "{\"model\":\"" + detail_ft::jesc(config.base_model) + "\","
                        "\"training_file\":\"" + detail_ft::jesc(training_file_id) + "\"";
-    if (config.n_epochs > 0)
-        body += ",\"hyperparameters\":{\"n_epochs\":" + std::to_string(config.n_epochs) + "}";
+    {
+        std::string hp;
+        if (config.n_epochs > 0)
+            hp += "\"n_epochs\":" + std::to_string(config.n_epochs);
+        if (config.batch_size > 0) {
+            if (!hp.empty()) hp += ',';
+            hp += "\"batch_size\":" + std::to_string(config.batch_size);
+        }
+        if (config.learning_rate_multiplier > 0.0) {
+            if (!hp.empty()) hp += ',';
+            hp += "\"learning_rate_multiplier\":" + std::to_string(config.learning_rate_multiplier);
+        }
+        if (!hp.empty()) body += ",\"hyperparameters\":{" + hp + "}";
+    }
     if (!config.suffix.empty())
         body += ",\"suffix\":\"" + detail_ft::jesc(config.suffix) + "\"";
     body += "}";
@@ -396,14 +410,21 @@ FinetuneJob cancel_job(const std::string& job_id, const std::string& api_key) {
 FinetuneJob wait_for_completion(const std::string& job_id,
                                  const std::string& api_key,
                                  int poll_interval_seconds,
-                                 std::function<void(const FinetuneJob&)> on_status) {
-    while (true) {
+                                 std::function<void(const FinetuneJob&)> on_status,
+                                 int max_wait_seconds) {
+    auto deadline = std::chrono::steady_clock::now()
+                    + std::chrono::seconds(max_wait_seconds > 0 ? max_wait_seconds : 86400);
+    while (std::chrono::steady_clock::now() < deadline) {
         FinetuneJob job = get_job(job_id, api_key);
         if (on_status) on_status(job);
         if (job.status == "succeeded" || job.status == "failed" || job.status == "cancelled")
             return job;
         std::this_thread::sleep_for(std::chrono::seconds(poll_interval_seconds));
     }
+    FinetuneJob timed_out = get_job(job_id, api_key);
+    timed_out.error = "wait_for_completion: timed out after "
+                      + std::to_string(max_wait_seconds) + " seconds";
+    return timed_out;
 }
 
 std::vector<FinetunedModel> list_models(const std::string& api_key) {
@@ -411,7 +432,17 @@ std::vector<FinetunedModel> list_models(const std::string& api_key) {
     std::vector<FinetunedModel> models;
     size_t p = 0;
     while (true) {
-        auto found = resp.find("\"ft:", p);
+        auto found = resp.find("\"ft:openai-", p);
+        if (found == std::string::npos) found = resp.find("\"ftjob-", p);
+        if (found == std::string::npos) {
+            // fallback: any fine-tuned model pattern (gpt-*/ft-*)
+            found = resp.find("\"gpt-", p);
+            if (found != std::string::npos) {
+                // only pick up if it contains ":ft-" indicating a fine-tuned variant
+                auto colon = resp.find(":ft-", found);
+                if (colon == std::string::npos || colon > found + 60) found = std::string::npos;
+            }
+        }
         if (found == std::string::npos) break;
         auto ob = resp.rfind('{', found);
         if (ob == std::string::npos) break;
